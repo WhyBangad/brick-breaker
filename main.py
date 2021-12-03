@@ -1,10 +1,11 @@
 import pygame
-import time
+import time, math
 
 # TODO:
 # Difficulty level adjusts vertical speed
 # In-game timer (also tied with difficulty)
-# vertical speed increases when brick decrease
+# vertical speed increases when brick count decreases
+# number of balls tied with difficulty
 
 pygame.init()
 
@@ -17,6 +18,7 @@ pygame.display.set_icon(pygame.image.load('./img/joystick.png'))
 BALL_SIZE = 32
 BALL_LOC = (400, 300)
 BALL_VEL = [0.3, 1]
+BALL_CENTRE = 32*math.sqrt(2)
 ball = pygame.image.load('./img/ball.png')
 ball_coords = BALL_LOC
 ball_velocity = BALL_VEL
@@ -25,7 +27,7 @@ def load_ball(coords):
 
 brick = pygame.image.load('./img/brick.png')
 BRICK_SIZE = 64
-BRICK_HEIGHT = 32
+BRICK_CENTRE = 32
 BRICK_ROWS = 3
 BRICK_COLS = 12
 MARGIN_H = (SCREEN_SIZE[0] - BRICK_COLS*BRICK_SIZE)/2
@@ -40,14 +42,40 @@ def load_bricks():
             if not broken[i][j]:
                 screen.blit(brick, (MARGIN_H + j*BRICK_SIZE, MARGIN_V + i*BRICK_SIZE))
 
+def brick_bounce(br_coords, bl_coords):
+    # determine which surface is being hit
+    # left, right, top, bottom
+    # horizontal, vertical
+    hit = [False, False]
+    if bl_coords[0] == br_coords[0]:
+        hit[0] = True
+    elif bl_coords[1] == br_coords[1]:
+        hit[1] = True
+    else:
+        slope = (br_coords[1]-bl_coords[1])/(br_coords[0]-bl_coords[0])
+        if abs(slope) == 1:
+            hit[0] = hit[1] = True
+        else:
+            if abs(slope) > 1:
+                hit[0] = True
+            else:
+                hit[1] = True
+    global ball_velocity
+    if hit[0]:
+        ball_velocity[1] *= -1
+    if hit[1]:
+        ball_velocity[0] *= -1
+        
+
 def update_bricks(coords):
     for i in range(BRICK_ROWS):
         for j in range(BRICK_COLS):
             curr_x, curr_y = MARGIN_H + j*BRICK_SIZE, MARGIN_V + i*BRICK_SIZE
-            if not broken[i][j] and coords[0]+BALL_SIZE/2 >= curr_x and coords[0]-BALL_SIZE/2 <= curr_x + BRICK_SIZE and coords[1]+BALL_SIZE/2 >= curr_y and coords[1]-BALL_SIZE/2 <= curr_y + BRICK_HEIGHT:
+            if not broken[i][j] and coords[0]+BALL_SIZE/2 >= curr_x and coords[0]-BALL_SIZE/2 <= curr_x + BRICK_SIZE and coords[1]+BALL_SIZE/2 >= curr_y and coords[1]-BALL_SIZE/2 <= curr_y + BRICK_CENTRE:
                 broken[i][j] = True
                 global broken_count
                 broken_count += 1
+                brick_bounce((curr_x+BRICK_CENTRE, curr_y+BRICK_CENTRE), (coords[0] + BALL_CENTRE, coords[1] + BALL_CENTRE))
 
 platform = pygame.image.load('./img/platform.png')
 PLATFORM_LOC = (400, 550)
