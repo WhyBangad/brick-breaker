@@ -3,8 +3,6 @@ import pygame, time, math
 # TODO:
 # Difficulty level adjusts vertical speed
 # In-game timer (also tied with difficulty)
-# vertical speed increases when brick count decreases
-# number of balls tied with difficulty
 
 pygame.init()
 
@@ -148,10 +146,93 @@ class Window():
     SHIFT = 50
     font = pygame.font.Font('./basketball-font/Basketball.otf', 30)
     background = pygame.transform.scale(pygame.image.load('./img/brick-background.jpg'), (800,600))
+
     def load(self, score:int, time:int) -> None:
         screen.blit(Window.background, (0,0))
         screen.blit(Window.font.render('Score : ' + str(score), True, (0,0,0)), Window.SCORE_COORDS)
         screen.blit(Window.font.render('Time left : ' + str(time), True, (0,0,0)), Window.TIMER_COORDS)
+
+    def loading_screen(self) -> int:
+        font = pygame.font.Font('./basketball-font/Basketball.otf', 60)
+        up, down = pygame.image.load('./img/up.png'), pygame.image.load('./img/down.png')
+        difficulty = 1
+        run = True
+        while run:
+            for event in pygame.event.get():
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_RETURN:
+                        run = False
+                        break
+                    elif event.key == pygame.K_DOWN:
+                        difficulty += 1
+                        if difficulty > 4:
+                            difficulty = 1
+                    elif event.key == pygame.K_UP:
+                        difficulty -= 1
+                        if difficulty < 0:
+                            difficulty = 4
+                if event.type == pygame.QUIT:
+                    return -1
+            screen.fill((0,0,0))
+            screen.blit(self.background, (0,0))
+            screen.blit(font.render('Brick breaker game', True, (0,0,0)), (150,100))
+            screen.blit(up, (495, 200))
+            screen.blit(font.render(f'Difficulty    {difficulty}', True, (0,0,0)), (200, 250))
+            screen.blit(down, (495, 290))
+            pygame.display.update()
+        return difficulty
+
+    def run_game(self, difficulty:int):
+        TIMER_DEFAULT = 60
+        ball = Ball()
+        grid = Grid()
+        platform = Platform()
+        run = True
+        timer, start_time = TIMER_DEFAULT, time.time()
+        while run:
+            press = False
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    run = False
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_LEFT:
+                        if platform.velocity[0] > 0:
+                            platform.velocity[0] = 0
+                        else:
+                            platform.velocity[0] -= 1
+                        press = True
+                    if event.key == pygame.K_RIGHT:
+                        if platform.velocity[0] < 0:
+                            platform.velocity[0] = 0
+                        else:
+                            platform.velocity[0] += 1
+                        press = True
+            if not press:
+                if platform.velocity[0] > 0:
+                    platform.velocity[0] += Platform.VEL_DEGRADE
+                elif platform.velocity[0] < 0:
+                    platform.velocity[0] -= Platform.VEL_DEGRADE
+            if grid.empty():
+                self.game_over('W')
+                run = False
+            ball.update()
+            platform.update()
+            if ball.coords[1] + ball.velocity[1] >= Ball.BNDRY_V:
+                self.game_over('L', grid.broken)
+                run = False
+            if timer - int(time.time()-start_time) <= 0:
+                self.game_over('T')
+                run = False
+            if run == False:
+                break
+            grid.update(ball=ball)
+            platform.bounce(ball=ball)
+            screen.fill((0,0,0))
+            self.load(grid.broken, timer - int(time.time()-start_time))
+            platform.load()
+            ball.load()
+            grid.load()
+            pygame.display.update()
 
     def game_over(self, status:str, broken_count:int=None) -> None:
         time.sleep(1)
@@ -178,48 +259,8 @@ class Window():
                 if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
                     run = False
 
-TIMER_DEFAULT = 60
-ball = Ball()
-grid = Grid()
-platform = Platform()
-window = Window()
-run = True
-timer, start_time = TIMER_DEFAULT, time.time()
-while run:
-    press = False
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            run = False
-        if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_LEFT:
-                platform.velocity[0] -= 1
-                press = True
-            if event.key == pygame.K_RIGHT:
-                platform.velocity[0] += 1
-                press = True
-    if not press:
-        if platform.velocity[0] > 0:
-            platform.velocity[0] += Platform.VEL_DEGRADE
-        elif platform.velocity[0] < 0:
-            platform.velocity[0] -= Platform.VEL_DEGRADE
-    if grid.empty():
-        window.game_over('W')
-        run = False
-    ball.update()
-    platform.update()
-    if ball.coords[1] + ball.velocity[1] >= Ball.BNDRY_V:
-        window.game_over('L', grid.broken)
-        run = False
-    if timer - int(time.time()-start_time) <= 0:
-        window.game_over('T')
-        run = False
-    if run == False:
-        break
-    grid.update(ball=ball)
-    platform.bounce(ball=ball)
-    screen.fill((0,0,0))
-    window.load(grid.broken, timer - int(time.time()-start_time))
-    platform.load()
-    ball.load()
-    grid.load()
-    pygame.display.update()
+if __name__ == '__main__':
+    game_window = Window()
+    difficulty = game_window.loading_screen()
+    if difficulty != -1:
+        game_window.run_game(difficulty)
