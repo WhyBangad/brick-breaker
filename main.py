@@ -139,7 +139,8 @@ class Platform():
         self.coords = (self.coords[0] + self.velocity[0], self.coords[1] + self.velocity[1])
 
 class Window():
-    SCORE_COORDS = (350,5)
+    SCORE_COORDS = (200,5)
+    TIMER_COORDS = (450, 5)
     RESULT_DISPLAY_X = 310
     RESULT_DISPLAY_Y = 400
     TEXT_DISPLAY_X = 255
@@ -147,29 +148,28 @@ class Window():
     SHIFT = 50
     font = pygame.font.Font('./basketball-font/Basketball.otf', 30)
     background = pygame.transform.scale(pygame.image.load('./img/brick-background.jpg'), (800,600))
-    def load(self, score:int) -> None:
+    def load(self, score:int, time:int) -> None:
         screen.blit(Window.background, (0,0))
-        text = Window.font.render('Score : ' + str(score), True, (0,0,0))
-        screen.blit(text, Window.SCORE_COORDS)
+        screen.blit(Window.font.render('Score : ' + str(score), True, (0,0,0)), Window.SCORE_COORDS)
+        screen.blit(Window.font.render('Time left : ' + str(time), True, (0,0,0)), Window.TIMER_COORDS)
 
-    def game_over(self, status:str, broken_count:int) -> None:
+    def game_over(self, status:str, broken_count:int=None) -> None:
         time.sleep(1)
         img_size = 256
         result = []
         screen.fill((0,0,0))
         screen.blit(self.background, (0,0))
+        margin = (SCREEN_SIZE[0]-img_size)/2, (SCREEN_SIZE[1]-img_size)/2 - Window.SHIFT
         if status == 'W':
             result.append((self.font.render('Congratulations, You won!', True, (0,0,0)), (Window.TEXT_DISPLAY_X-Window.SHIFT/2, Window.RESULT_DISPLAY_Y)))
-            margin = (SCREEN_SIZE[0]-img_size)/2, (SCREEN_SIZE[1]-img_size)/2 - Window.SHIFT
             screen.blit(pygame.image.load('./img/success.png'), margin)
         elif status == 'L':
             result.append((Window.font.render(f'Final score : {broken_count}', True, (0,0,0)), (Window.RESULT_DISPLAY_X, Window.RESULT_DISPLAY_Y)))
             result.append((Window.font.render('Better luck next time!', True, (0,0,0)), (Window.TEXT_DISPLAY_X, Window.TEXT_DISPLAY_Y)))
-            margin = (SCREEN_SIZE[0]-img_size)/2, (SCREEN_SIZE[1]-img_size)/2 - Window.SHIFT
             screen.blit(pygame.image.load('./img/game-over.png'), margin)
-        else:
-            # for timeout
-            pass
+        elif status == 'T':
+            result.append((Window.font.render(f'Timeup! Try to be quicker!', True, (0,0,0)), (Window.TEXT_DISPLAY_X, Window.RESULT_DISPLAY_Y)))
+            screen.blit(pygame.image.load('./img/timeout.png'), margin)
         screen.blits(result)
         pygame.display.update()
         run = True
@@ -178,11 +178,13 @@ class Window():
                 if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
                     run = False
 
+TIMER_DEFAULT = 60
 ball = Ball()
 grid = Grid()
 platform = Platform()
 window = Window()
 run = True
+timer, start_time = TIMER_DEFAULT, time.time()
 while run:
     press = False
     for event in pygame.event.get():
@@ -201,19 +203,22 @@ while run:
         elif platform.velocity[0] < 0:
             platform.velocity[0] -= Platform.VEL_DEGRADE
     if grid.empty():
-        window.game_over('W', grid.broken)
+        window.game_over('W')
         run = False
     ball.update()
     platform.update()
     if ball.coords[1] + ball.velocity[1] >= Ball.BNDRY_V:
         window.game_over('L', grid.broken)
         run = False
+    if timer - int(time.time()-start_time) <= 0:
+        window.game_over('T')
+        run = False
     if run == False:
         break
     grid.update(ball=ball)
     platform.bounce(ball=ball)
     screen.fill((0,0,0))
-    window.load(grid.broken)
+    window.load(grid.broken, timer - int(time.time()-start_time))
     platform.load()
     ball.load()
     grid.load()
