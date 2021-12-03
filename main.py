@@ -12,18 +12,18 @@ SCREEN_SIZE = (800, 600)
 screen = pygame.display.set_mode(SCREEN_SIZE)
 
 pygame.display.set_caption('Brick Breaker')
-pygame.display.set_icon(pygame.image.load('joystick.png'))
+pygame.display.set_icon(pygame.image.load('./img/joystick.png'))
 
 BALL_SIZE = 32
 BALL_LOC = (400, 300)
 BALL_VEL = [0.3, 1]
-ball = pygame.image.load('ball.png')
+ball = pygame.image.load('./img/ball.png')
 ball_coords = BALL_LOC
 ball_velocity = BALL_VEL
 def load_ball(coords):
     screen.blit(ball, coords)
 
-brick = pygame.image.load('brick.png')
+brick = pygame.image.load('./img/brick.png')
 BRICK_SIZE = 64
 BRICK_HEIGHT = 32
 BRICK_ROWS = 3
@@ -49,7 +49,7 @@ def update_bricks(coords):
                 global broken_count
                 broken_count += 1
 
-platform = pygame.image.load('platform.png')
+platform = pygame.image.load('./img/platform.png')
 PLATFORM_LOC = (400, 550)
 PLATFORM_VEL = [0, 0]
 VEL_DEGRADE = -0.002
@@ -76,7 +76,7 @@ RESULT_DISPLAY_Y = 400
 TEXT_DISPLAY_X = 255
 TEXT_DISPLAY_Y = 430
 SHIFT = 50
-background = pygame.transform.scale(pygame.image.load('brick-background.jpg'), (800,600))
+background = pygame.transform.scale(pygame.image.load('./img/brick-background.jpg'), (800,600))
 def game_over(status):
     time.sleep(1)
     img_size = 256
@@ -86,12 +86,12 @@ def game_over(status):
     if status == 'W':
         result.append((font.render('Congratulations, You won!', True, (0,0,0)), (TEXT_DISPLAY_X-SHIFT/2, RESULT_DISPLAY_Y)))
         margin = (SCREEN_SIZE[0]-img_size)/2, (SCREEN_SIZE[1]-img_size)/2 - SHIFT
-        screen.blit(pygame.image.load('success.png'), margin)
+        screen.blit(pygame.image.load('./img/success.png'), margin)
     elif status == 'L':
         result.append((font.render(f'Final score : {broken_count}', True, (0,0,0)), (RESULT_DISPLAY_X, RESULT_DISPLAY_Y)))
         result.append((font.render('Better luck next time!', True, (0,0,0)), (TEXT_DISPLAY_X, TEXT_DISPLAY_Y)))
         margin = (SCREEN_SIZE[0]-img_size)/2, (SCREEN_SIZE[1]-img_size)/2 - SHIFT
-        screen.blit(pygame.image.load('game-over.png'), margin)
+        screen.blit(pygame.image.load('./img/game-over.png'), margin)
     else:
         # for timeout
         pass
