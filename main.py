@@ -1,4 +1,4 @@
-import pygame, math
+import pygame, time, math
 
 # TODO:
 # Difficulty level adjusts vertical speed
@@ -175,7 +175,7 @@ class Window():
         run = True
         while run:
             for event in pygame.event.get():
-                if event.type == pygame.QUIT or event.type == pygame.KEYDOWN:
+                if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
                     run = False
 
 ball = Ball()
