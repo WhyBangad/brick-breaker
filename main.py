@@ -16,7 +16,7 @@ class Ball():
     # change ball's velocity in Ball object
     SIZE = 32
     LOC = (400, 300)
-    VEL = [0.3, 1]
+    VEL = [0.3, 2]
     CENTRE = 32*math.sqrt(2)
     BNDRY_H = SCREEN_SIZE[0] - SIZE
     BNDRY_V = SCREEN_SIZE[1] - SIZE
@@ -115,6 +115,7 @@ class Platform():
     LOC = (400, 550)
     VEL = [0, 0]
     VEL_DEGRADE = -0.002
+    VEL_CHANGE = 1
     SIZE = 64
     BNDRY_H = SCREEN_SIZE[0] - SIZE
     BNDRY_V = SCREEN_SIZE[1] - SIZE
@@ -133,7 +134,7 @@ class Platform():
     
     def update(self):
         if self.coords[0] + self.velocity[0] >= self.BNDRY_H  or self.coords[0] + self.velocity[0] <= 0:
-            self.velocity[0] *= -1
+            self.velocity[0] = 0
         self.coords = (self.coords[0] + self.velocity[0], self.coords[1] + self.velocity[1])
 
 class Window():
@@ -144,7 +145,7 @@ class Window():
     TEXT_DISPLAY_X = 255
     TEXT_DISPLAY_Y = 430
     SHIFT = 50
-    font = pygame.font.Font('./basketball-font/Basketball.otf', 30)
+    font = pygame.font.Font('./font/Basketball.otf', 30)
     background = pygame.transform.scale(pygame.image.load('./img/brick-background.jpg'), (800,600))
 
     def load(self, score:int, time:int) -> None:
@@ -153,8 +154,8 @@ class Window():
         screen.blit(Window.font.render('Time left : ' + str(time), True, (0,0,0)), Window.TIMER_COORDS)
 
     def loading_screen(self) -> int:
-        font = pygame.font.Font('./basketball-font/Basketball.otf', 60)
-        up, down = pygame.image.load('./img/up.png'), pygame.image.load('./img/down.png')
+        font = pygame.font.Font('./font/Team 401.ttf', 30)
+        up, down, square = pygame.image.load('./img/up.png'), pygame.image.load('./img/down.png'), pygame.image.load('./img/square.png')
         difficulty = 1
         run = True
         while run:
@@ -169,26 +170,27 @@ class Window():
                             difficulty = 1
                     elif event.key == pygame.K_UP:
                         difficulty -= 1
-                        if difficulty < 0:
+                        if difficulty <= 0:
                             difficulty = 4
                 if event.type == pygame.QUIT:
                     return -1
             screen.fill((0,0,0))
             screen.blit(self.background, (0,0))
-            screen.blit(font.render('Brick breaker game', True, (0,0,0)), (150,100))
-            screen.blit(up, (495, 200))
-            screen.blit(font.render(f'Difficulty    {difficulty}', True, (0,0,0)), (200, 250))
-            screen.blit(down, (495, 290))
+            screen.blit(font.render('Brick breaker game', True, (0,0,0)), (100,100))
+            screen.blit(square, (540, 245))
+            screen.blit(up, (540, 190))
+            screen.blit(font.render(f'Difficulty    {difficulty}', True, (0,0,0)), (180, 250))
+            screen.blit(down, (540, 300))
             pygame.display.update()
         return difficulty
 
     def run_game(self, difficulty:int):
-        TIMER_DEFAULT = 60
+        diff_timer_map = {1: 100, 2: 75, 3: 60, 4: 50}
         ball = Ball()
         grid = Grid()
         platform = Platform()
         run = True
-        timer, start_time = TIMER_DEFAULT, time.time()
+        timer, start_time = diff_timer_map[difficulty], time.time()
         while run:
             press = False
             for event in pygame.event.get():
@@ -197,15 +199,15 @@ class Window():
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_LEFT:
                         if platform.velocity[0] > 0:
-                            platform.velocity[0] = 0
+                            platform.velocity[0] += -Platform.VEL_CHANGE
                         else:
-                            platform.velocity[0] -= 1
+                            platform.velocity[0] -= Platform.VEL_CHANGE
                         press = True
                     if event.key == pygame.K_RIGHT:
                         if platform.velocity[0] < 0:
-                            platform.velocity[0] = 0
+                            platform.velocity[0] -= -Platform.VEL_CHANGE
                         else:
-                            platform.velocity[0] += 1
+                            platform.velocity[0] += Platform.VEL_CHANGE
                         press = True
             if not press:
                 if platform.velocity[0] > 0:
