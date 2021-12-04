@@ -1,9 +1,5 @@
 import pygame, time, math
 
-# TODO:
-# Difficulty level adjusts vertical speed
-# In-game timer (also tied with difficulty)
-
 pygame.init()
 
 SCREEN_SIZE = (800, 600)
