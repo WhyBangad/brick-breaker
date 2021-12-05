@@ -8,130 +8,117 @@ screen = pygame.display.set_mode(SCREEN_SIZE)
 pygame.display.set_caption('Brick Breaker')
 pygame.display.set_icon(pygame.image.load('./img/joystick.png'))
 
-class Ball():
-    # change ball's velocity in Ball object
+class Ball(pygame.sprite.Sprite):
     SIZE = 32
     LOC = (400, 300)
-    VEL = [0.3, 2]
+    # VEL = [1, 1]
+    VEL = [2, 2]
+    VEL_BOUND = [6, 8]
     CENTRE = 32*math.sqrt(2)
     BNDRY_H = SCREEN_SIZE[0] - SIZE
     BNDRY_V = SCREEN_SIZE[1] - SIZE
     MARGIN_V = 20
-    ball = pygame.image.load('./img/ball.png')
+    img = pygame.image.load('./img/ball.png')
 
     def __init__(self):
-        # add option to pass ball location and image
-        self.coords = self.LOC
-        self.velocity = self.VEL
-
-    def load(self):
-        screen.blit(Ball.ball, self.coords)
-
+        pygame.sprite.Sprite.__init__(self)
+        self.image = Ball.img
+        self.rect = self.image.get_rect()
+        self.rect.x, self.rect.y = Ball.LOC
+        self.velocity = Ball.VEL
+    
+    def draw(self, screen:pygame.surface.Surface):
+        screen.blit(self.image, self.rect)
+    
     def update(self):
-        if self.coords[0] + self.velocity[0] >= Ball.BNDRY_H  or self.coords[0] + self.velocity[0] < 0:
+        if self.rect.x + self.velocity[0] >= Ball.BNDRY_H  or self.rect.x + self.velocity[0] < 0:
             self.velocity[0] *= -1
-        if self.coords[1] + self.velocity[1] < Ball.MARGIN_V:
+            if abs(self.velocity[0]) > Ball.VEL_BOUND[0]:
+                self.velocity[0] = math.copysign(Ball.VEL_BOUND[0], self.velocity[0])
+        if self.rect.y + self.velocity[1] < Ball.MARGIN_V:
             self.velocity[1] *= -1
-        self.coords = (self.coords[0] + self.velocity[0], self.coords[1] + self.velocity[1])
+            if abs(self.velocity[1]) > Ball.VEL_BOUND[1]:
+                self.velocity[1] = math.copysign(Ball.VEL_BOUND[1], self.velocity[1])
+        self.rect.move_ip(self.velocity[0], self.velocity[1])
 
-class Brick():
-    brick = pygame.image.load('./img/brick.png')
+class Brick(pygame.sprite.Sprite):
+    img = pygame.image.load('./img/brick.png')
     SIZE = 64
     CENTRE = 32
     CORNER_SLOPE = 0.5
 
-    def __init__(self, position:tuple, visible:bool) -> None:
-        self.coords = position
-        self.vis = visible
+    def __init__(self, coords: tuple):
+        pygame.sprite.Sprite.__init__(self)
+        self.image = Brick.img
+        self.rect = self.img.get_rect()
+        self.rect.x, self.rect.y = coords
 
-    def load(self):
-        if self.vis:
-            global screen
-            screen.blit(Brick.brick, self.coords)
+    def draw(self, screen: pygame.Surface):
+        screen.blit(self.image, self.rect)
 
-    def hit(self):
-        self.vis = False
-
-    def visible(self):
-        return self.vis
-
-    def bounce(self, ball:Ball):
-        curr_x, curr_y = (self.coords[0]+self.CENTRE, self.coords[1]+self.CENTRE)
-        ball_x, ball_y = (ball.coords[0] + ball.CENTRE, ball.coords[1] + ball.CENTRE)
-        # determine which surface is being hit
-        # horizontal, vertical
-        hit = [False, False]
-        if curr_x == ball_x:
-            hit[0] = True
-        elif curr_y == ball_y:
-            hit[1] = True
-        else:
-            # corner hit should change speed in both directions
-            slope = (curr_y-ball_y)/(curr_x-ball_x)
-            if abs(slope) > 1:
-                hit[0] = True
+    def update(self, ball: Ball):
+        if self.rect.colliderect(ball.rect):
+            self.kill()
+            curr_x, curr_y = (self.rect.x+self.CENTRE, self.rect.y+self.CENTRE)
+            ball_x, ball_y = (ball.rect.x + ball.CENTRE, ball.rect.y + ball.CENTRE)
+            if curr_x == ball_x:
+                ball.velocity[1] *= -1
+            elif curr_y == ball_y:
+                ball.velocity[0] *= -1
             else:
-                hit[1] = True
-        if hit[0]:
-            ball.velocity[1] *= -1
-        if hit[1]:
-            ball.velocity[0] *= -1
+                if ball.rect.x < self.rect.x or ball.rect.x > self.rect.x + self.SIZE:
+                    ball.velocity[0] *= -1
+                else:
+                    ball.velocity[1] *= -1            
 
-class Grid():
-    ROWS = 3
-    COLS = 12
-    MARGIN_H = (SCREEN_SIZE[0] - COLS*Brick.SIZE)/2
-    MARGIN_V = 20
-
-    def __init__(self):
-        self.grid = [[Brick(position=(Grid.MARGIN_H + j*Brick.SIZE, Grid.MARGIN_V + i*Brick.SIZE), visible=True) for j in range(Grid.COLS)] for i in range(Grid.ROWS)]
+class Grid(pygame.sprite.Group):
+    def __init__(self, rows: int, cols: int):
+        pygame.sprite.Group.__init__(self)
+        self.rows = rows
+        self.cols = cols
+        self.margin_h = (SCREEN_SIZE[0] - self.cols*Brick.SIZE)/2
+        self.margin_v = 20
         self.broken = 0
+        [[self.add(Brick((self.margin_h+ j*Brick.SIZE, self.margin_v + i*Brick.SIZE))) for j in range(cols)] for i in range(rows)]
 
-    def empty(self) -> bool:
-        return self.broken == Grid.ROWS*Grid.COLS
+    def update(self, ball: Ball):
+        for sprite in self.sprites():
+            if sprite.rect.colliderect(ball.rect):
+                sprite.update(ball)
+                self.broken += 1
+                break
 
-    def load(self):
-        for i in range(Grid.ROWS):
-            for j in range(Grid.COLS):
-                self.grid[i][j].load()
-
-    def update(self, ball:Ball):
-        for i in range(Grid.ROWS):
-            for j in range(Grid.COLS):
-                brick = self.grid[i][j]
-                curr_x, curr_y = brick.coords
-                if brick.visible() and ball.coords[0]+ball.SIZE/2 >= curr_x and ball.coords[0]-ball.SIZE/2 <= curr_x + brick.SIZE and ball.coords[1]+ball.SIZE/2 >= curr_y and ball.coords[1]-ball.SIZE/2 <= curr_y + brick.CENTRE:
-                    brick.hit()
-                    self.broken += 1
-                    brick.bounce(ball=ball)
-                    break
-
-class Platform():
+class Platform(pygame.sprite.Sprite):
     platform = pygame.image.load('./img/platform.png')
     LOC = (400, 550)
-    VEL = [0, 0]
-    VEL_DEGRADE = -0.002
-    VEL_CHANGE = 1
+    VEL = [0.0, 0.0]
+    # VEL_CHANGE = 1
+    VEL_CHANGE = 2
     SIZE = 64
     BNDRY_H = SCREEN_SIZE[0] - SIZE
-    BNDRY_V = SCREEN_SIZE[1] - SIZE
 
     def __init__(self):
-        self.coords = Platform.LOC
+        pygame.sprite.Sprite.__init__(self)
+        self.image = Platform.platform
+        self.rect = self.image.get_rect()
+        self.rect.x, self.rect.y = Platform.LOC
         self.velocity = Platform.VEL
 
-    def load(self):
-        screen.blit(self.platform, self.coords)
+    def draw(self, screen:pygame.Surface):
+        screen.blit(self.image, self.rect)
 
-    def bounce(self, ball:Ball):
-        if ball.coords[0]+ball.SIZE/2 >= self.coords[0] and ball.coords[0]-ball.SIZE/2 <= self.coords[0]+self.SIZE and ball.coords[1]+ball.SIZE/2 >= self.coords[1]+self.SIZE/4:
-            ball.velocity[1] *= -1
-            ball.velocity[0] = ball.velocity[0]/2 + self.velocity[0]/5
-    
-    def update(self):
-        if self.coords[0] + self.velocity[0] >= self.BNDRY_H  or self.coords[0] + self.velocity[0] <= 0:
+    def update(self, ball: Ball):
+        if self.rect.x + self.velocity[0] >= self.BNDRY_H  or self.rect.x + self.velocity[0] <= 0:
             self.velocity[0] = 0
-        self.coords = (self.coords[0] + self.velocity[0], self.coords[1] + self.velocity[1])
+        self.rect.move_ip(self.velocity[0], self.velocity[1])
+        if pygame.Rect.colliderect(self.rect.move(0, Platform.SIZE/2), ball.rect):
+            ball.velocity[1] *= -1
+            ball.velocity[0] += int(self.velocity[0]/3)
+            if ball.velocity[0] == 0:
+                if self.velocity[0] > 0:
+                    ball.velocity[0] = 1
+                elif self.velocity[0] < 0:
+                    ball.velocity = -1
 
 class Window():
     SCORE_COORDS = (200,5)
@@ -144,7 +131,7 @@ class Window():
     font = pygame.font.Font('./font/Basketball.otf', 30)
     background = pygame.transform.scale(pygame.image.load('./img/brick-background.jpg'), (800,600))
 
-    def load(self, score:int, time:int) -> None:
+    def draw(self, score:int, time:int) -> None:
         screen.blit(Window.background, (0,0))
         screen.blit(Window.font.render('Score : ' + str(score), True, (0,0,0)), Window.SCORE_COORDS)
         screen.blit(Window.font.render('Time left : ' + str(time), True, (0,0,0)), Window.TIMER_COORDS)
@@ -183,54 +170,41 @@ class Window():
     def run_game(self, difficulty:int):
         diff_timer_map = {1: 100, 2: 75, 3: 60, 4: 50}
         ball = Ball()
-        grid = Grid()
+        grid = Grid(rows=3, cols=10)
         platform = Platform()
         run = True
-        timer, start_time = diff_timer_map[difficulty], time.time()
+        timer, start_ticks = diff_timer_map[difficulty], pygame.time.get_ticks()
+        clock = pygame.time.Clock()
         while run:
-            press = False
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     run = False
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_LEFT:
-                        if platform.velocity[0] > 0:
-                            platform.velocity[0] += -Platform.VEL_CHANGE
-                        else:
-                            platform.velocity[0] -= Platform.VEL_CHANGE
-                        press = True
+                        platform.velocity[0] -= Platform.VEL_CHANGE
                     if event.key == pygame.K_RIGHT:
-                        if platform.velocity[0] < 0:
-                            platform.velocity[0] -= -Platform.VEL_CHANGE
-                        else:
-                            platform.velocity[0] += Platform.VEL_CHANGE
-                        press = True
-            if not press:
-                if platform.velocity[0] > 0:
-                    platform.velocity[0] += Platform.VEL_DEGRADE
-                elif platform.velocity[0] < 0:
-                    platform.velocity[0] -= Platform.VEL_DEGRADE
-            if grid.empty():
+                        platform.velocity[0] += Platform.VEL_CHANGE
+            if len(grid.sprites()) == 0:
                 self.game_over('W')
                 run = False
             ball.update()
-            platform.update()
-            if ball.coords[1] + ball.velocity[1] >= Ball.BNDRY_V:
+            platform.update(ball=ball)
+            if ball.rect.y + ball.velocity[1] >= Ball.BNDRY_V:
                 self.game_over('L', grid.broken)
                 run = False
-            if timer - int(time.time()-start_time) <= 0:
+            elif timer - int((pygame.time.get_ticks()-start_ticks)/1000) <= 0:
                 self.game_over('T')
                 run = False
             if run == False:
                 break
             grid.update(ball=ball)
-            platform.bounce(ball=ball)
             screen.fill((0,0,0))
-            self.load(grid.broken, timer - int(time.time()-start_time))
-            platform.load()
-            ball.load()
-            grid.load()
+            self.draw(grid.broken, timer - int((pygame.time.get_ticks()-start_ticks)/1000))
+            grid.draw(screen)
+            platform.draw(screen)
+            ball.draw(screen)
             pygame.display.update()
+            clock.tick(120)
 
     def game_over(self, status:str, broken_count:int=None) -> None:
         time.sleep(1)
